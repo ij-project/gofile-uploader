@@ -1,5 +1,25 @@
 #!/bin/bash
 
+# File to store the API key
+API_KEY_FILE="$HOME/.gofile_api_key"
+
+# Function to request API key
+request_api_key() {
+    read -sp "Enter your API key: " API_KEY
+    echo
+    echo $API_KEY > $API_KEY_FILE
+    chmod 600 $API_KEY_FILE
+}
+
+# Check if the API key already exists
+if [ ! -f $API_KEY_FILE ]; then
+    echo "API key not found. Please enter your API key."
+    request_api_key
+fi
+
+# Read the API key from the file
+API_KEY=$(cat $API_KEY_FILE)
+
 # Check if a file argument is provided
 if [[ "$#" == '0' ]]; then
     echo -e 'ERROR: No File Specified!' && exit 1
@@ -17,7 +37,7 @@ SERVER=$(curl -s https://api.gofile.io/servers | jq -r '.data.servers[0].name')
 # -# shows a progress bar
 # -F specifies form data, "file=@$FILE" uploads the file content
 # Use jq to parse JSON response and extract the download page URL
-LINK=$(curl -# -F "file=@$FILE" "https://${SERVER}.gofile.io/uploadFile" | jq -r '.data|.downloadPage') 2>&1
+LINK=$(curl -# -F "file=@$FILE" -u :$API_KEY "https://${SERVER}.gofile.io/uploadFile" | jq -r '.data|.downloadPage') 2>&1
 
 # Display the download link
 # Quoting $LINK preserves any spaces or special characters in the URL
