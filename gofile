@@ -11,16 +11,31 @@ FILE="$1"
 
 # Query GoFile API to find the best server for upload
 # Use jq to parse JSON response and extract the server name
-SERVER=$(curl -s https://api.gofile.io/servers | jq -r '.data.servers[0].name')
+# Add a User-Agent (-A) because sometimes GoFile blocks default curl requests.
+SERVER=$(curl -s -A "Mozilla/5.0" https://api.gofile.io/servers | jq -r '.data.servers[0].name')
 
-# Upload the file to GoFile
-# -# shows a progress bar
-# -F specifies form data, "file=@$FILE" uploads the file content
-# Use jq to parse JSON response and extract the download page URL
-LINK=$(curl -# -F "file=@$FILE" "https://${SERVER}.gofile.io/uploadFile" | jq -r '.data|.downloadPage') 2>&1
+# Check if jq actually returned a valid server
+# If not, default to "store1" or exit.
+if [[ "$SERVER" == "null" || -z "$SERVER" ]]; then
+    echo "Warning: API did not return a valid server. Trying fallback (store1)..."
+    SERVER="store1"
+fi
 
-# Display the download link
+echo "Uploading to ${SERVER}.gofile.io..."
+
+# Upload the file
+# Add User-Agent here as well to ensure the upload is accepted.
+LINK=$(curl -# -A "Mozilla/5.0" -F "file=@$FILE" "https://${SERVER}.gofile.io/uploadFile" | jq -r '.data.downloadPage') 2>&1
+
+# Verify and display the download link
 # Quoting $LINK preserves any spaces or special characters in the URL
+
+if [[ "$LINK" == "null" || -z "$LINK" ]]; then
+    echo "Upload failed. Please check your internet or GoFile API status."
+    exit 1
+fi
+
+echo "Done!"
 echo "$LINK"
 
 # Print a blank line for better readability
