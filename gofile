@@ -21,37 +21,45 @@ command -v jq >/dev/null || {
 }
 
 echo "📁 File: $FILE"
-echo "📡 Trying GoFile servers..."
+echo "📡 Fetching best GoFile upload server..."
+
+# Dynamically query available server
+SERVER_RESP=$(curl -s "https://api.gofile.io/servers")
+SERVER=$(echo "$SERVER_RESP" | jq -r '.data.servers[0].name // .data.server // empty')
+
+# Fallback endpoint if needed
+if [[ -z "$SERVER" ]]; then
+    SERVER=$(curl -s "https://api.gofile.io/getServer" | jq -r '.data.server // empty')
+fi
+
+if [[ -z "$SERVER" ]]; then
+    echo "🚫 Failed to retrieve an active GoFile server."
+    exit 1
+fi
+
+echo "➡️  Selected server: $SERVER"
+echo "🚀 Uploading..."
 echo
 
-# Try these servers one by one
-SERVERS=(store2 store3 store4 store5)
+# Perform upload to updated endpoint path (/contents/uploadfile)
+RESP=$(curl -4 --http1.1 --progress-bar \
+    -F "file=@${FILE}" \
+    "https://${SERVER}.gofile.io/contents/uploadfile")
 
-SUCCESS=0
-for S in "${SERVERS[@]}"; do
-    echo "➡️  Trying server: $S ..."
-    
-    # Perform upload
-    RESP=$(curl -4 --http1.1 --progress-bar \
-        -F "file=@${FILE}" "https://${S}.gofile.io/uploadFile")
+# Check status
+STATUS=$(echo "$RESP" | jq -r '.status // empty')
 
-    # Check status
-    STATUS=$(echo "$RESP" | jq -r '.status')
-
-    if [[ "$STATUS" == "ok" ]]; then
-        LINK=$(echo "$RESP" | jq -r '.data.downloadPage')
-        echo
-        echo "✅ **Upload Successful on ${S}**"
-        echo "🔗 Link: $LINK"
-        SUCCESS=1
-        break
-    else
-        echo "❌ Failed on $S, trying next..."
-        echo
-    fi
-done
-
-[[ $SUCCESS -eq 0 ]] && echo "🚫 Upload failed on all servers." && exit 1
+if [[ "$STATUS" == "ok" ]]; then
+    LINK=$(echo "$RESP" | jq -r '.data.downloadPage')
+    echo
+    echo "✅ **Upload Successful!**"
+    echo "🔗 Link: $LINK"
+else
+    echo
+    echo "🚫 Upload failed."
+    echo "Response: $RESP"
+    exit 1
+fi
 
 echo
 echo "🎉 Done!"
