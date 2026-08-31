@@ -23,14 +23,9 @@ command -v jq >/dev/null || {
 echo "📁 File: $FILE"
 echo "📡 Fetching best GoFile upload server..."
 
-# Dynamically query available server
+# Get best server
 SERVER_RESP=$(curl -s "https://api.gofile.io/servers")
 SERVER=$(echo "$SERVER_RESP" | jq -r '.data.servers[0].name // .data.server // empty')
-
-# Fallback endpoint if needed
-if [[ -z "$SERVER" ]]; then
-    SERVER=$(curl -s "https://api.gofile.io/getServer" | jq -r '.data.server // empty')
-fi
 
 if [[ -z "$SERVER" ]]; then
     echo "🚫 Failed to retrieve an active GoFile server."
@@ -41,13 +36,13 @@ echo "➡️  Selected server: $SERVER"
 echo "🚀 Uploading..."
 echo
 
-# Perform upload to updated endpoint path (/contents/uploadfile)
-RESP=$(curl -4 --http1.1 --progress-bar \
+# Perform upload without strict HTTP version/IP restrictions
+RESP=$(curl -s --progress-bar \
     -F "file=@${FILE}" \
     "https://${SERVER}.gofile.io/contents/uploadfile")
 
-# Check status
-STATUS=$(echo "$RESP" | jq -r '.status // empty')
+# Extract status safely
+STATUS=$(echo "$RESP" | jq -r '.status // empty' 2>/dev/null)
 
 if [[ "$STATUS" == "ok" ]]; then
     LINK=$(echo "$RESP" | jq -r '.data.downloadPage')
