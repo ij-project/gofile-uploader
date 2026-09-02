@@ -23,7 +23,7 @@ command -v jq >/dev/null || {
 echo "📁 File: $FILE"
 echo "📡 Fetching best GoFile upload server..."
 
-# Get best server
+# Get best server (keep silent here so JSON doesn't leak into stderr)
 SERVER_RESP=$(curl -s "https://api.gofile.io/servers")
 SERVER=$(echo "$SERVER_RESP" | jq -r '.data.servers[0].name // .data.server // empty')
 
@@ -36,8 +36,8 @@ echo "➡️  Selected server: $SERVER"
 echo "🚀 Uploading..."
 echo
 
-# Perform upload without strict HTTP version/IP restrictions
-RESP=$(curl -s --progress-bar \
+# Upload using --progress-bar (without -s)
+RESP=$(curl --progress-bar \
     -F "file=@${FILE}" \
     "https://${SERVER}.gofile.io/contents/uploadfile")
 
