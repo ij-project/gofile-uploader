@@ -21,23 +21,14 @@ command -v jq >/dev/null || {
 }
 
 echo "📁 File: $FILE"
-echo "📡 Fetching active GoFile server and guest account..."
+echo "📡 Fetching active GoFile server..."
 
 # Get active server
 SERVER_RESP=$(curl -s "https://api.gofile.io/servers")
 SERVER=$(echo "$SERVER_RESP" | jq -r '.data.servers[0].name // .data.server // empty')
 
-# Create a guest account to get a valid token
-ACCOUNT_RESP=$(curl -s -X POST "https://api.gofile.io/accounts")
-TOKEN=$(echo "$ACCOUNT_RESP" | jq -r '.data.token // empty')
-
 if [[ -z "$SERVER" ]]; then
     echo "🚫 Failed to retrieve an active GoFile server."
-    exit 1
-fi
-
-if [[ -z "$TOKEN" ]]; then
-    echo "🚫 Failed to create a guest account token."
     exit 1
 fi
 
@@ -45,11 +36,9 @@ echo "➡️  Selected server: $SERVER"
 echo "🚀 Uploading..."
 echo
 
-# Upload passing the token parameter in header and form data
+# Upload directly without explicit token parameter
 RESP=$(curl --progress-bar \
-    -H "Authorization: Bearer ${TOKEN}" \
     -F "file=@${FILE}" \
-    -F "token=${TOKEN}" \
     "https://${SERVER}.gofile.io/contents/uploadfile")
 
 # Extract status safely
